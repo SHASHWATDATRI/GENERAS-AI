@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>G.E.N.E.R.A.S. AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tone@14.7.58/build/Tone.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Dosis:wght@400;600;700&display=swap');
+        
+        :root {
+            --bg-dark: #111827;
+            --text-dark: #e5e7eb;
+            --border-dark: #3b82f6;
+            --input-bg-dark: rgba(17, 24, 39, 0.8);
+            --btn-bg-dark: #374151;
+            --msg-ai-dark: #1f2937;
+            --msg-user-dark: #1d4ed8;
+
+            --bg-light: #f9fafb;
+            --text-light: #1f2937;
+            --border-light: #2563eb;
+            --input-bg-light: rgba(255, 255, 255, 0.8);
+            --btn-bg-light: #e5e7eb;
+            --msg-ai-light: #f3f4f6;
+            --msg-user-light: #3b82f6;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-dark);
+            transition: background-color 0.5s ease, color 0.5s ease;
+        }
+        
+        body.light-mode {
+            background-color: var(--bg-light);
+            color: var(--text-light);
+        }
+
+        .ai-display {
+            font-family: 'Dosis', sans-serif;
+            font-size: 2.5rem;
+            color: var(--text-dark);
+            text-shadow: 0 0 8px var(--border-dark), 0 0 16px var(--border-dark), 0 0 24px var(--border-dark);
+            animation: text-glow 2s infinite ease-in-out alternate;
+        }
+
+        @keyframes text-glow {
+            from { text-shadow: 0 0 4px var(--border-dark), 0 0 8px var(--border-dark); }
+            to { text-shadow: 0 0 12px var(--border-dark), 0 0 24px var(--border-dark); }
+        }
+        
+        body.light-mode .ai-display {
+             color: var(--text-light);
+             text-shadow: 0 0 4px var(--border-light);
+             animation: none;
+        }
+
+        #ai-orb {
+            width: 80px;
+            height: 80px;
+            background: radial-gradient(circle, var(--border-dark) 0%, rgba(17, 24, 39, 0) 70%);
+            border-radius: 50%;
+            margin: 20px auto;
+            animation: pulse-orb 4s infinite ease-in-out;
+            transition: transform 0.5s ease, box-shadow 0.5s ease;
+        }
+
+        @keyframes pulse-orb {
+            0%, 100% { transform: scale(0.95); box-shadow: 0 0 20px -5px var(--border-dark); }
+            50% { transform: scale(1.05); box-shadow: 0 0 30px 5px var(--border-dark); }
+        }
+        
+        #ai-orb.thinking {
+            animation: pulse-orb 2s infinite ease-in-out, spin-orb 3s infinite linear;
+        }
+
+        @keyframes spin-orb {
+            from { transform: rotate(0deg) scale(1.05); }
+            to { transform: rotate(360deg) scale(1.05); }
+        }
+
+        #ai-orb.beating {
+            animation: beat-orb 0.5s infinite ease-in-out;
+        }
+
+        @keyframes beat-orb {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.15); }
+        }
+
+
+        #chat-container {
+            width: 100%;
+            max-width: 800px;
+            height: calc(100vh - 360px);
+            overflow-y: auto;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            scrollbar-width: thin;
+            scrollbar-color: var(--btn-bg-dark) transparent;
+        }
+
+        .chat-message {
+            padding: 1rem;
+            border-radius: 0.75rem;
+            max-width: 85%;
+            line-height: 1.6;
+            position: relative;
+            animation: fade-in-up 0.5s ease-out;
+        }
+
+        @keyframes fade-in-up {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .chat-message.ai {
+            background-color: var(--msg-ai-dark);
+            border-left: 4px solid var(--border-dark);
+            align-self: flex-start;
+        }
+        
+        body.light-mode .chat-message.ai {
+            background-color: var(--msg-ai-light);
+            border-left-color: var(--border-light);
+        }
+
+        .chat-message.user {
+            background-color: var(--msg-user-dark);
+            align-self: flex-end;
+            color: #fff;
+        }
+        
+        body.light-mode .chat-message.user {
+             background-color: var(--msg-user-light);
+        }
+        
+        .copy-btn {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            color: #ccc;
+            padding: 0.3rem;
+            border-radius: 0.25rem;
+            cursor: pointer;
+            opacity: 0;
+            transition: opacity 0.2s, background-color 0.2s;
+            line-height: 1;
+        }
+        .chat-message.ai:hover .copy-btn {
+            opacity: 0.8;
+        }
+        .copy-btn:hover {
+            background: rgba(255,255,255,0.2);
+            opacity: 1;
+        }
+        body.light-mode .copy-btn {
+            background: rgba(0,0,0,0.05);
+            color: #555;
+        }
+
+        .input-area {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 1rem;
+            background-color: var(--input-bg-dark);
+            backdrop-filter: blur(10px);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            transition: background-color 0.5s ease, border-top 0.5s ease;
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+            animation: input-glow 3s infinite ease-in-out alternate;
+        }
+        
+        @keyframes input-glow {
+            from { box-shadow: 0 0 15px rgba(59, 130, 246, 0.2); }
+            to { box-shadow: 0 0 30px rgba(59, 130, 246, 0.4); }
+        }
+
+        body.light-mode .input-area {
+            animation-name: input-glow-light;
+        }
+
+        @keyframes input-glow-light {
+            from { box-shadow: 0 0 15px rgba(37, 99, 235, 0.1); }
+            to { box-shadow: 0 0 30px rgba(37, 99, 235, 0.2); }
+        }
+
+        #user-input:focus {
+            box-shadow: 0 0 15px var(--border-dark);
+            transform: scale(1.01);
+        }
+        
+        body.light-mode #user-input:focus {
+            box-shadow: 0 0 15px var(--border-light);
+        }
+
+        .btn-ai {
+            background: var(--btn-bg-dark);
+            color: #e5e7eb;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+            transition: all 0.2s ease-in-out;
+            border-radius: 9999px;
+            padding: 0.75rem 1.5rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+        
+        body.light-mode .btn-ai {
+            background: var(--btn-bg-light);
+            color: #374151;
+        }
+
+        .btn-ai:hover:not(:disabled) {
+            transform: translateY(-3px) scale(1.05);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2), 0 4px 6px -2px rgba(0, 0, 0, 0.1);
+        }
+        .btn-ai:active:not(:disabled) {
+            transform: translateY(-1px) scale(1.02);
+        }
+        #send-btn {
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+        }
+        .btn-ai:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        #mic-btn.listening::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            border: 2px solid var(--border-dark);
+            animation: wave 1.5s infinite;
+        }
+
+        @keyframes wave {
+            0% { transform: scale(1); opacity: 0.6; }
+            100% { transform: scale(2); opacity: 0; }
+        }
+        
+        .top-left-name {
+            position: fixed; top: 1.5rem; left: 1.5rem; font-family: 'Dosis', sans-serif;
+            font-size: 0.875rem; color: rgba(255, 255, 255, 0.3); text-shadow: none;
+            transition: color 0.5s ease;
+        }
+        body.light-mode .top-left-name { color: rgba(0, 0, 0, 0.3); }
+
+        #toggle-mode-btn {
+            position: fixed; top: 1.5rem; right: 1.5rem; padding: 0.75rem;
+            font-size: 1.25rem; line-height: 1;
+        }
+
+        .options-menu {
+            position: absolute; bottom: 120%; right: 0; display: none;
+            flex-direction: column; background-color: rgba(41, 41, 41, 0.9);
+            backdrop-filter: blur(5px); border-radius: 1rem; padding: 1rem;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3); gap: 0.75rem;
+            width: max-content;
+            animation: slide-up 0.3s ease-out;
+        }
+
+        @keyframes slide-up {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        body.light-mode .options-menu {
+            background-color: rgba(255, 255, 255, 0.9);
+        }
+    </style>
+</head>
+<body class="flex flex-col justify-center items-center min-h-screen">
+    
+    <div class="top-left-name">An AI by Shashwat Dwivedi</div>
+
+    <button id="toggle-mode-btn" title="Toggle Light/Dark Mode" class="btn-ai !p-3">💡</button>
+
+    <div class="flex-1 flex flex-col items-center justify-center w-full pt-16">
+        <h1 id="ai-name" class="ai-display mb-4">G.E.N.E.R.A.S.</h1>
+        <div id="ai-orb"></div>
+        <div id="chat-container">
+            <!-- Chat messages will be appended here -->
+        </div>
+    </div>
+    
+    <div class="input-area w-full">
+        <div class="max-w-4xl mx-auto flex justify-center items-center space-x-2 sm:space-x-2">
+            <input type="file" id="bg-input" class="hidden" accept="image/*" />
+            
+            <button id="mic-btn" title="Use Voice" class="btn-ai !p-3">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+            </button>
+             <button id="tts-toggle-btn" title="Toggle AI Voice" class="btn-ai !p-3">🔊</button>
+            
+            <input type="text" id="user-input" class="flex-1 p-3 bg-gray-700/50 text-white rounded-full border-2 border-gray-600 focus:outline-none focus:border-blue-500 transition-all" placeholder="Ask me anything..." autofocus />
+            <button id="send-btn" class="btn-ai">Send</button>
+
+            <div class="relative">
+                <button id="options-btn" title="More Options" class="btn-ai !p-3">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" /></svg>
+                </button>
+                <div id="options-menu" class="options-menu">
+                    <button id="teach-btn" class="btn-ai text-sm w-full justify-start">🧠 Teach AI</button>
+                    <button id="fact-btn" class="btn-ai text-sm w-full justify-start">💡 Fun Fact</button>
+                    <button id="change-bg-btn" class="btn-ai text-sm w-full justify-start">🖼️ Change BG</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const dom = {
+            chatContainer: document.getElementById('chat-container'),
+            userInput: document.getElementById('user-input'),
+            sendBtn: document.getElementById('send-btn'),
+            micBtn: document.getElementById('mic-btn'),
+            toggleModeBtn: document.getElementById('toggle-mode-btn'),
+            factBtn: document.getElementById('fact-btn'),
+            optionsBtn: document.getElementById('options-btn'),
+            optionsMenu: document.getElementById('options-menu'),
+            changeBgBtn: document.getElementById('change-bg-btn'),
+            bgInput: document.getElementById('bg-input'),
+            ttsToggleBtn: document.getElementById('tts-toggle-btn'),
+            teachBtn: document.getElementById('teach-btn'),
+            aiOrb: document.getElementById('ai-orb'),
+        };
+
+        const state = {
+            lastUserMessage: "",
+            isAwaitingResponse: false,
+            isTtsEnabled: true,
+            isTeachingStep: 0, 
+            tempTrigger: "",
+            learnedFacts: {},
+        };
+
+        const constants = {
+            fullBotName: "the GUY ENGINEERED just NOTHING else with EXELLENCE to be served as usefull RESOURCE as an ARTIFICIAL INTELLIGENCE to MR. SHASHWAT DWIVEDI",
+            sourceCodeResponse: "I can't share my source code with you, you maniac.",
+            ownershipResponse: "I am created, trained, and owned by SHASHWAT DWIVEDI. Everything about me belongs to MR SHASHWAT DWIVEDI.",
+            localStorageKey: 'generas_learned_facts',
+        };
+        const synth = new Tone.Synth().toDestination();
+
+        const OpenRouterAPI = {
+            apiKey: "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",
+
+            async generateContent(prompt) {
+                const apiUrl = 'https://openrouter.ai/api/v1/chat/completions';
+                const payload = {
+                    model: "nousresearch/nous-hermes-2-mixtral-8x7b-dpo", // A powerful free model on OpenRouter
+                    messages: [
+                        { role: "user", content: prompt }
+                    ]
+                };
+
+                try {
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${this.apiKey}`,
+                            'HTTP-Referer': 'https://generas-ai.com', // Optional but recommended
+                            'X-Title': 'G.E.N.E.R.A.S. AI' // Optional but recommended
+                        },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) {
+                         if (response.status === 401) {
+                            return "Authentication failed. The OpenRouter API key is invalid or has expired.";
+                        }
+                        throw new Error(`API Error: ${response.statusText} (Status: ${response.status})`);
+                    }
+
+                    const result = await response.json();
+                    if (result.choices?.[0]?.message?.content) {
+                        return result.choices[0].message.content;
+                    }
+                    throw new Error("Invalid response structure from OpenRouter AI.");
+                } catch (error) {
+                    console.error("OpenRouter API Error:", error);
+                    return "I'm having trouble connecting to my core intelligence. This could be a network issue or the API service may be temporarily down.";
+                }
+            }
+        };
+
+        const FreeAPI = {
+            async getFact() {
+                try {
+                    const response = await fetch('https://uselessfacts.jsph.pl/random.json?language=en');
+                    if (!response.ok) {
+                        throw new Error(`API Error: ${response.statusText}`);
+                    }
+                    const data = await response.json();
+                    return data.text;
+                } catch (error) {
+                    console.error("Free Fact API Error:", error);
+                    return "I couldn't fetch a fact right now. The free API might be down.";
+                }
+            }
+        };
+
+        const addMessageToChat = (content, sender, type = 'text') => {
+            const messageEl = document.createElement('div');
+            messageEl.classList.add('chat-message', sender);
+            switch (type) {
+                case 'error':
+                    messageEl.textContent = content;
+                    messageEl.classList.add('bg-red-500/20', 'border-l-4', 'border-red-500');
+                    break;
+                case 'text':
+                default:
+                    messageEl.textContent = content;
+                    if (sender === 'ai') {
+                        const copyButton = document.createElement('button');
+                        copyButton.innerHTML = '📋';
+                        copyButton.title = 'Copy text';
+                        copyButton.classList.add('copy-btn');
+                        copyButton.onclick = (e) => {
+                            e.stopPropagation();
+                            const textArea = document.createElement("textarea");
+                            textArea.value = content;
+                            document.body.appendChild(textArea);
+                            textArea.select();
+                            try {
+                                document.execCommand('copy');
+                                copyButton.innerHTML = '✅';
+                            } catch (err) {
+                                copyButton.innerHTML = '❌';
+                                console.error('Copy failed', err);
+                            }
+                            document.body.removeChild(textArea);
+                            setTimeout(() => { copyButton.innerHTML = '📋'; }, 2000);
+                        };
+                        messageEl.appendChild(copyButton);
+                    }
+                    break;
+            }
+            dom.chatContainer.appendChild(messageEl);
+            dom.chatContainer.scrollTop = dom.chatContainer.scrollHeight;
+            return messageEl;
+        };
+        
+        const speakResponse = (text) => {
+            if (!state.isTtsEnabled || !text) return;
+            if ('speechSynthesis' in window) {
+                speechSynthesis.cancel();
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.onstart = () => dom.aiOrb.classList.add('beating');
+                utterance.onend = () => dom.aiOrb.classList.remove('beating');
+                utterance.onerror = () => dom.aiOrb.classList.remove('beating');
+                speechSynthesis.speak(utterance);
+            } else {
+                console.warn("Text-to-Speech not supported in this browser.");
+            }
+        };
+
+        const setUIBusy = (isBusy) => {
+            state.isAwaitingResponse = isBusy;
+            dom.sendBtn.disabled = isBusy;
+            dom.userInput.disabled = isBusy;
+            
+            if(isBusy) {
+                dom.aiOrb.classList.add('thinking');
+                dom.sendBtn.innerHTML = `<div class="w-5 h-5 border-2 border-white/50 border-t-white rounded-full animate-spin"></div>`;
+            } else {
+                dom.aiOrb.classList.remove('thinking');
+                dom.sendBtn.textContent = 'Send';
+            }
+        };
+
+        const handleSpecialResponses = (message) => {
+            const lower = message.toLowerCase();
+            const checks = {
+                [constants.ownershipResponse]: ['who created you', 'who is your creator', 'who made you', 'your owner', 'who owns you'],
+                [constants.sourceCodeResponse]: ['source code', 'show me your code', 'share your code'],
+                [`My full name is "${constants.fullBotName}".`]: ['full name', 'full form', 'your name', 'who are you']
+            };
+            for (const [response, keywords] of Object.entries(checks)) {
+                if (keywords.some(kw => lower.includes(kw))) return response;
+            }
+            return null;
+        };
+
+        const processUserMessage = async (userMessage) => {
+            if (!userMessage || state.isAwaitingResponse) return;
+
+            addMessageToChat(userMessage, 'user');
+            state.lastUserMessage = userMessage;
+            dom.userInput.value = '';
+            dom.optionsMenu.style.display = 'none';
+
+            if (state.isTeachingStep === 1) {
+                state.tempTrigger = userMessage;
+                state.isTeachingStep = 2;
+                addMessageToChat("Got it. Now, what is the exact answer I should provide?", 'ai');
+                return;
+            }
+            if (state.isTeachingStep === 2) {
+                saveLearnedFact(state.tempTrigger, userMessage);
+                addMessageToChat("Thank you! I've learned that.", 'ai');
+                state.isTeachingStep = 0;
+                state.tempTrigger = "";
+                return;
+            }
+
+            setUIBusy(true);
+
+            const learnedResponse = findLearnedFact(userMessage);
+            if (learnedResponse) {
+                addMessageToChat(learnedResponse, 'ai');
+                speakResponse(learnedResponse);
+                setUIBusy(false);
+                return;
+            }
+
+            const specialResponse = handleSpecialResponses(userMessage);
+            if (specialResponse) {
+                addMessageToChat(specialResponse, 'ai');
+                speakResponse(specialResponse);
+                setUIBusy(false);
+                return;
+            }
+            
+            const aiResponse = await OpenRouterAPI.generateContent(userMessage);
+            addMessageToChat(aiResponse, 'ai');
+            speakResponse(aiResponse);
+            setUIBusy(false);
+        };
+
+        function loadLearnedFactsFromStorage() {
+            try {
+                const storedFacts = localStorage.getItem(constants.localStorageKey);
+                if (storedFacts) {
+                    state.learnedFacts = JSON.parse(storedFacts);
+                }
+            } catch (error) {
+                console.error("Could not load learned facts from localStorage:", error);
+                state.learnedFacts = {};
+            }
+        }
+
+        function saveLearnedFact(trigger, response) {
+            const triggerKey = trigger.toLowerCase();
+            state.learnedFacts[triggerKey] = response;
+            try {
+                localStorage.setItem(constants.localStorageKey, JSON.stringify(state.learnedFacts));
+            } catch (error) {
+                console.error("Could not save learned facts to localStorage:", error);
+                addMessageToChat("I had trouble remembering that. My memory might be full.", "ai", "error");
+            }
+        }
+
+        function findLearnedFact(userMessage) {
+            const userMessageKey = userMessage.toLowerCase();
+            return state.learnedFacts[userMessageKey] || null;
+        }
+        
+        const setupEventListeners = () => {
+            dom.sendBtn.addEventListener('click', () => processUserMessage(dom.userInput.value.trim()));
+            dom.userInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    processUserMessage(dom.userInput.value.trim());
+                }
+            });
+
+            dom.teachBtn.addEventListener('click', () => {
+                state.isTeachingStep = 1;
+                addMessageToChat("I'm ready to learn. What is the question or trigger?", 'ai');
+                dom.optionsMenu.style.display = 'none';
+                dom.userInput.focus();
+            });
+
+            dom.factBtn.addEventListener('click', async () => {
+                if (state.isAwaitingResponse) return;
+                setUIBusy(true);
+                dom.optionsMenu.style.display = 'none';
+                const fact = await FreeAPI.getFact();
+                addMessageToChat(fact, 'ai');
+                speakResponse(fact);
+                setUIBusy(false);
+            });
+
+            dom.toggleModeBtn.addEventListener('click', () => {
+                document.body.classList.toggle('light-mode');
+                dom.toggleModeBtn.textContent = document.body.classList.contains('light-mode') ? '🌙' : '💡';
+            });
+            
+            dom.ttsToggleBtn.addEventListener('click', () => {
+                state.isTtsEnabled = !state.isTtsEnabled;
+                dom.ttsToggleBtn.innerHTML = state.isTtsEnabled ? '🔊' : '🔇';
+                dom.ttsToggleBtn.classList.toggle('opacity-50', !state.isTtsEnabled);
+            });
+            
+            dom.changeBgBtn.addEventListener('click', () => dom.bgInput.click());
+            dom.bgInput.addEventListener('change', (event) => {
+                const file = event.target.files[0];
+                if (file && file.type.startsWith("image/")) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        document.body.style.backgroundImage = `url('${e.target.result}')`;
+                        document.body.style.backgroundSize = 'cover';
+                        document.body.style.backgroundPosition = 'center';
+                        document.body.style.backgroundAttachment = 'fixed';
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+
+            dom.optionsBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const isDisplayed = dom.optionsMenu.style.display === 'flex';
+                dom.optionsMenu.style.display = isDisplayed ? 'none' : 'flex';
+            });
+
+            document.addEventListener('click', (e) => {
+                if (!dom.optionsMenu.contains(e.target) && !dom.optionsBtn.contains(e.target)) {
+                    dom.optionsMenu.style.display = 'none';
+                }
+            });
+
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (SpeechRecognition) {
+                const recognition = new SpeechRecognition();
+                recognition.interimResults = false;
+                recognition.lang = 'en-US';
+                
+                recognition.onresult = (event) => {
+                    dom.userInput.value = event.results[0][0].transcript;
+                    processUserMessage(dom.userInput.value.trim());
+                };
+                recognition.onerror = (event) => console.error('Speech recognition error:', event.error);
+                recognition.onstart = () => {
+                    dom.micBtn.classList.add('listening');
+                    dom.aiOrb.classList.add('beating');
+                };
+                recognition.onend = () => {
+                    dom.micBtn.classList.remove('listening');
+                    dom.aiOrb.classList.remove('beating');
+                };
+                
+                dom.micBtn.addEventListener('click', () => {
+                    if (state.isAwaitingResponse) return;
+                    Tone.start();
+                    synth.triggerAttackRelease("C4", "8n");
+                    recognition.start();
+                });
+            } else {
+                console.warn('Speech Recognition not supported.');
+                dom.micBtn.disabled = true;
+                dom.micBtn.style.opacity = 0.5;
+            }
+        };
+
+        const init = () => {
+            loadLearnedFactsFromStorage();
+            setupEventListeners();
+            setTimeout(() => {
+                addMessageToChat("HEY , HOW CAN I HELP YOU?", 'ai');
+            }, 500);
+        };
+
+        init();
+    </script>
+</body>
+</html>
